@@ -36,7 +36,6 @@ func tcpSocket(addr *core.ServerAddr, passive bool, sockOpts ...Option) (fd int,
 	}
 
 	if passive {
-		//
 		err = os.NewSyscallError("listen", unix.Listen(fd, listenerBacklogMaxSize))
 	} else {
 		err = os.NewSyscallError("connect", unix.Connect(fd, addr.Sa))

@@ -1,4 +1,4 @@
-package event
+package events
 
 import (
 	"greactor/src/core"
@@ -8,7 +8,7 @@ import (
 type Action int
 
 const (
-	// None indicates that no action should occur following an event.
+	// None indicates that no action should occur following an events.
 	None Action = iota
 
 	// Close closes the connection.
@@ -22,9 +22,9 @@ type (
 
 	EventHandler interface {
 
-		OnInitComplete(server core.Server) (action Action)
+		OnInitComplete(server *core.Server) (action Action)
 
-		OnShutdown(server core.Server)
+		OnShutdown(server *core.Server)
 
 		// 将数据写入socket之前触发
 		PreWrite(c core.Conn)

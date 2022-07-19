@@ -2,6 +2,14 @@ package core
 
 import "net"
 
+// 当一个新连接建立时，分配给事件循环组中的某个event-loop处理，所使用的负载均衡算法
+type LoadBalancing int
+
+const (
+	RoundRobin LoadBalancing = iota
+
+)
+
 type (
 	// eventLoop负载均衡算法
 	loadBalancer interface {
@@ -25,7 +33,7 @@ func (lb *roundRobinLoadBalancer) register(el *eventLoop) {
 	lb.size++
 }
 
-// next returns the eligible event-loop based on Round-Robin algorithm.
+// next returns the eligible events-loop based on Round-Robin algorithm.
 func (lb *roundRobinLoadBalancer) next(_ net.Addr) (el *eventLoop) {
 	el = lb.eventLoops[lb.nextLoopIndex]
 	if lb.nextLoopIndex++; lb.nextLoopIndex >= lb.size {
