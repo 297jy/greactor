@@ -77,5 +77,8 @@ func (s *Server) Run() (err error) {
 }
 
 func (s *Server) activeReactors(numEventLoop int) error {
+	for i:=0;i<numEventLoop;i++{
+
+	}
 	return nil
 }
