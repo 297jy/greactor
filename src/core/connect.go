@@ -11,12 +11,11 @@ import (
 )
 
 type Conn interface {
-	Read() (buf []byte)
+	Read() ([]byte, error)
 
-	// ResetBuffer resets the buffers, which means all data in inbound ring-buffers and events-loop-buffers will be evicted.
-	ResetBuffer()
+	Write(buf []byte) (err error)
 
-	Close() error
+	Close(err error) (rerr error)
 }
 
 type conn struct {
@@ -63,7 +62,7 @@ func (c *conn) handleEvents(_ int, ev uint32) error {
 	return nil
 }
 
-func (c *conn) close(err error) (rerr error) {
+func (c *conn) Close(err error) (rerr error) {
 	if !c.opened {
 		return nil
 	}
@@ -80,6 +79,8 @@ func (c *conn) close(err error) (rerr error) {
 		err1 = fmt.Errorf("failed to close fd=%d in event-loop(%d): %v", c.fd, c.loop.idx, os.NewSyscallError("close", err1))
 	}
 	c.loop.addConn(-1)
+
+	c.releaseTCP()
 	return nil
 }
 
@@ -97,13 +98,13 @@ func (c *conn) releaseTCP() {
 	c.pollAttachment = nil
 }
 
-func (c *conn) read() ([]byte, error) {
+func (c *conn) Read() ([]byte, error) {
 	n, err := unix.Read(c.fd, c.buffer)
 	if n == 0 || err != nil {
 		if err == unix.EAGAIN {
 			return nil, nil
 		}
-		return nil, c.close(os.NewSyscallError("read", err))
+		return nil, c.Close(os.NewSyscallError("read", err))
 	}
 	c.buffer = c.buffer[:n]
 	c.inboundBuffer.Append(c.buffer)
@@ -117,7 +118,7 @@ func (c *conn) read() ([]byte, error) {
 	return data, nil
 }
 
-func (c *conn) write(buf []byte) (err error) {
+func (c *conn) Write(buf []byte) (err error) {
 
 	c.outboundBuffer.Append(buf)
 
@@ -135,13 +136,16 @@ func (c *conn) write(buf []byte) (err error) {
 			err = c.loop.poller.ModReadWrite(c.pollAttachment)
 			return
 		}
-		return c.close(err)
+		return c.Close(err)
 	}
 
 	c.outboundBuffer.ShiftN(n)
 	if n < len(packet) {
 		// 让轮询器 监听写事件就绪
 		err = c.loop.poller.ModReadWrite(c.pollAttachment)
+	}
+	if c.outboundBuffer.IsEmpty() {
+		err = c.loop.poller.ModRead(c.pollAttachment)
 	}
 	return
 }

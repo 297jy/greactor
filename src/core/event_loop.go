@@ -1,8 +1,11 @@
 package core
 
 import (
+	"golang.org/x/sys/unix"
 	"greactor/src/core/events"
 	"greactor/src/core/netpoll"
+	"greactor/src/errors"
+	"os"
 	"sync/atomic"
 )
 
@@ -30,16 +33,50 @@ func (el *eventLoop) closeAllSockets() {
 }
 
 func (el *eventLoop) closeConn(c *conn, err error) (rerr error) {
-	if !c.opened {
-		return
+	return c.Close(err)
+}
+
+func (el *eventLoop) write(c *conn, buf []byte) (err error) {
+	defer c.loop.eventHandler.AfterWrite(c, buf)
+
+	el.eventHandler.PreWrite(c)
+	err = c.Write(buf)
+	switch err {
+	case nil:
+	case unix.EAGAIN:
+		return nil
+	default:
+		return el.closeConn(c, os.NewSyscallError("write", err))
 	}
+
+	if c.outboundBuffer.IsEmpty() {
+		_ = el.poller.ModRead(c.pollAttachment)
+	}
+
+	return
 }
 
-func (el *eventLoop) write(c *conn) error {
+func (el *eventLoop) read(c *conn) (err error) {
+	for packet, _ := c.Read(); packet != nil; packet, _ = c.Read() {
+		out, action := el.eventHandler.React(packet, c)
+		if out != nil {
+			if err = el.write(c, out); err != nil {
+				return err
+			}
+		}
+		switch action {
+		case events.None:
+		case events.Close:
+			return el.closeConn(c, nil)
+		case events.Shutdown:
+			return errors.ErrServerShutdown
+		}
 
-}
-
-func (el *eventLoop) read(c *conn) error {
+		if !c.opened {
+			return nil
+		}
+	}
+	return
 }
 
 func (el *eventLoop) addConn(delta int32) {

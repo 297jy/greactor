@@ -189,6 +189,11 @@ func (p *Poller) ModReadWrite(pa *PollAttachment) error {
 		unix.EpollCtl(p.fd, unix.EPOLL_CTL_MOD, pa.FD, &unix.EpollEvent{Fd: int32(pa.FD), Events: readWriteEvents}))
 }
 
+func (p *Poller) ModRead(pa *PollAttachment) error {
+	return os.NewSyscallError("epoll_ctl mod",
+		unix.EpollCtl(p.fd, unix.EPOLL_CTL_MOD, pa.FD, &unix.EpollEvent{Fd: int32(pa.FD), Events: readEvents}))
+}
+
 func (p *Poller) Delete(fd int) error {
 	return os.NewSyscallError("epoll_ctl del", unix.EpollCtl(p.fd, unix.EPOLL_CTL_DEL, fd, nil))
 }
