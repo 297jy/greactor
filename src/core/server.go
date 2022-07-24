@@ -4,6 +4,7 @@ import (
 	"golang.org/x/sys/unix"
 	"greactor/src/core/events"
 	"greactor/src/core/icodecs"
+	"greactor/src/core/netpoll"
 	"greactor/src/core/socket"
 	"net"
 	"sync"
@@ -29,6 +30,12 @@ type Server struct {
 	eventHandler events.EventHandler
 	addr         *ServerAddr
 }
+
+const (
+	// DefaultBufferSize is the first-time allocation on a ring-buffers.
+	DefaultBufferSize   = 1024     // 1KB
+	bufferGrowThreshold = 4 * 1024 // 4KB
+)
 
 func NewServer(eventHandler events.EventHandler, protoAddr string, opts *Options) (s *Server, err error) {
 	var (
@@ -77,8 +84,19 @@ func (s *Server) Run() (err error) {
 }
 
 func (s *Server) activeReactors(numEventLoop int) error {
-	for i:=0;i<numEventLoop;i++{
-
+	for i := 0; i < numEventLoop; i++ {
+		if p, err := netpoll.OpenPoller(); err == nil {
+			el := new(eventLoop)
+			el.ln = s.ln
+			el.svr = s
+			el.poller = p
+			el.buffer = make([]byte, DefaultBufferSize)
+			el.connections = make(map[int]*conn)
+			el.eventHandler = s.eventHandler
+			s.lb.register(el)
+		} else {
+			return err
+		}
 	}
 	return nil
 }
