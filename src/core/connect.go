@@ -11,6 +11,8 @@ import (
 )
 
 type Conn interface {
+	Open(buf []byte) error
+
 	Read() ([]byte, error)
 
 	Write(buf []byte) (err error)
@@ -51,7 +53,7 @@ func newTCPConn(fd int, el *eventLoop, sa unix.Sockaddr, codec icodecs.ICodec, l
 
 func (c *conn) handleEvents(_ int, ev uint32) error {
 	if ev&netpoll.OutEvents != 0 && !c.outboundBuffer.IsEmpty() {
-		if err := c.loop.write(c); err != nil {
+		if err := c.loop.write(c, nil); err != nil {
 			return err
 		}
 	}
@@ -116,6 +118,14 @@ func (c *conn) Read() ([]byte, error) {
 
 	c.inboundBuffer.ShiftN(len(data))
 	return data, nil
+}
+
+func (c *conn) Open(buf []byte) (err error) {
+	defer c.loop.eventHandler.AfterWrite(c, buf)
+
+	c.loop.eventHandler.PreWrite(c)
+
+	return c.Write(buf)
 }
 
 func (c *conn) Write(buf []byte) (err error) {

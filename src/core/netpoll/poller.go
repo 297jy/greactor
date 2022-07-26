@@ -220,3 +220,14 @@ func PutPollAttachment(pa *PollAttachment) {
 	pa.FD, pa.Callback = 0, nil
 	pollAttachmentPool.Put(pa)
 }
+
+func (p *Poller) Trigger(fn queue.TaskFunc, arg interface{}) (err error) {
+	task := queue.GetTask()
+	task.Run, task.Arg = fn, arg
+	p.asyncTaskQueue.Enqueue(task)
+	if atomic.CompareAndSwapInt32(&p.netpollWakeSig, 0, 1) {
+		for _, err = unix.Write(p.wfd, b); err == unix.EINTR || err == unix.EAGAIN; _, err = unix.Write(p.wfd, b) {
+		}
+	}
+	return os.NewSyscallError("write", err)
+}

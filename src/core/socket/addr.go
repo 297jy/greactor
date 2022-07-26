@@ -2,10 +2,30 @@ package socket
 
 import (
 	"golang.org/x/sys/unix"
+	"greactor/src/core/buffers"
 	"greactor/src/errors"
 	"net"
 	"strings"
+	"sync"
 )
+
+var ipv4AddrPool = sync.Pool{New: func() interface{} {
+	bs := new(buffers.ByteBuffer)
+	bs.B = make([]byte, 16)
+	return bs
+}}
+
+func GetIpv4AddrByteBuffer() *buffers.ByteBuffer {
+	return ipv4AddrPool.Get().(*buffers.ByteBuffer)
+}
+
+func PutIpv4AddrByteBuffer(bb *buffers.ByteBuffer) {
+	if bb == nil {
+		return
+	}
+	bb.B = bb.B[:0]
+	ipv4AddrPool.Put(bb)
+}
 
 func ParseProtoAddr(addr string) (network, address string) {
 	network = "tcp"
@@ -90,4 +110,24 @@ func determineTCPProto(proto string, addr *net.TCPAddr) (string, error) {
 	}
 
 	return "", errors.ErrUnsupportedTCPProtocol
+}
+
+func SockaddrToTCPOrUnixAddr(sa unix.Sockaddr) net.Addr {
+	switch sa := sa.(type) {
+	case *unix.SockaddrInet4:
+		ip := sockaddrInet4ToIP(sa)
+		return &net.TCPAddr{IP: ip, Port: sa.Port}
+	case *unix.SockaddrUnix:
+		return &net.UnixAddr{Name: sa.Name, Net: "unix"}
+	}
+	return nil
+}
+
+func sockaddrInet4ToIP(sa *unix.SockaddrInet4) net.IP {
+	ip := GetIpv4AddrByteBuffer().B
+	// V4InV6Prefix
+	ip[10] = 0xff
+	ip[11] = 0xff
+	copy(ip[12:16], sa.Addr[:])
+	return ip
 }
