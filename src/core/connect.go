@@ -46,12 +46,14 @@ func newTCPConn(fd int, el *eventLoop, sa unix.Sockaddr, codec icodecs.ICodec, l
 		inboundBuffer:  buffers.GetByteBuffer(),
 		outboundBuffer: buffers.GetByteBuffer(),
 	}
+	c.buffer = make([]byte, DefaultBufferSize)
 	c.pollAttachment = netpoll.GetPollAttachment()
 	c.pollAttachment.FD, c.pollAttachment.Callback = fd, c.handleEvents
 	return
 }
 
 func (c *conn) handleEvents(_ int, ev uint32) error {
+	fmt.Println("开始处理事件")
 	if ev&netpoll.OutEvents != 0 && !c.outboundBuffer.IsEmpty() {
 		if err := c.loop.write(c, nil); err != nil {
 			return err
@@ -65,6 +67,7 @@ func (c *conn) handleEvents(_ int, ev uint32) error {
 }
 
 func (c *conn) Close(err error) (rerr error) {
+	fmt.Println(fmt.Errorf("close_err: %v", err))
 	if !c.opened {
 		return nil
 	}
@@ -101,11 +104,14 @@ func (c *conn) releaseTCP() {
 }
 
 func (c *conn) Read() ([]byte, error) {
+	fmt.Printf("cap:%d", cap(c.buffer))
 	n, err := unix.Read(c.fd, c.buffer)
 	if n == 0 || err != nil {
 		if err == unix.EAGAIN {
 			return nil, nil
 		}
+
+		fmt.Printf("read_err: %v，n:%d\n", err, n)
 		return nil, c.Close(os.NewSyscallError("read", err))
 	}
 	c.buffer = c.buffer[:n]

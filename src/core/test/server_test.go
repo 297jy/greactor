@@ -1,6 +1,7 @@
 package test
 
 import (
+	"fmt"
 	"greactor/src/core"
 	"testing"
 )
@@ -10,7 +11,13 @@ type testServer struct {
 }
 
 func (es *testServer) React(frame []byte, c core.Conn) (out []byte, action core.Action) {
+	fmt.Println("xxxxx")
 	out = frame
+	return
+}
+
+func (es *testServer) OnOpened(c core.Conn) (out []byte, action core.Action) {
+	fmt.Println("hello")
 	return
 }
 

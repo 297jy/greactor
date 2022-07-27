@@ -171,6 +171,7 @@ func (s *Server) runReactors(numEventLoop int) error {
 
 func (s *Server) accept(fd int, _ IOEvent) error {
 	nfd, sa, err := unix.Accept(fd)
+	fmt.Println("开始一个新连接")
 	if err != nil {
 		if err == unix.EAGAIN {
 			return nil

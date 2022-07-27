@@ -1,6 +1,8 @@
 package core
 
-import "net"
+import (
+	"net"
+)
 
 // 当一个新连接建立时，分配给事件循环组中的某个event-loop处理，所使用的负载均衡算法
 type LoadBalancing int

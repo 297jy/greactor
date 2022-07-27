@@ -67,6 +67,7 @@ func (el *eventLoop) closeAllSockets() {
 }
 
 func (el *eventLoop) closeConn(c *conn, err error) (rerr error) {
+	fmt.Println(err)
 	rerr = c.Close(err)
 	if rerr != nil {
 		return
@@ -125,6 +126,7 @@ func (el *eventLoop) addConn(delta int32) {
 }
 
 func (el *eventLoop) register(itf interface{}) error {
+	fmt.Println("开始注册新连接")
 	c := itf.(*conn)
 	if err := el.poller.AddRead(c.pollAttachment); err != nil {
 		_ = unix.Close(c.fd)
