@@ -2,18 +2,17 @@ package socket
 
 import (
 	"golang.org/x/sys/unix"
-	"greactor/src/core"
 	"os"
 )
 
 // backlog参数的最大值
 var listenerBacklogMaxSize = unix.SOMAXCONN
 
-func TCPSocket(addr *core.ServerAddr, passive bool, sockOpts ...Option) (int, error) {
+func TCPSocket(addr *ServerAddr, passive bool, sockOpts ...Option) (int, error) {
 	return tcpSocket(addr, passive, sockOpts...)
 }
 
-func tcpSocket(addr *core.ServerAddr, passive bool, sockOpts ...Option) (fd int,  err error) {
+func tcpSocket(addr *ServerAddr, passive bool, sockOpts ...Option) (fd int, err error) {
 
 	if fd, err = sysSocket(addr.Family, unix.SOCK_STREAM, unix.IPPROTO_TCP); err != nil {
 		err = os.NewSyscallError("socket", err)

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"golang.org/x/sys/unix"
 	"greactor/src/core/netpoll"
-	"greactor/src/core/socket"
 	"greactor/src/errors"
+	"greactor/src/socket"
 	"os"
 	"sync"
 )
@@ -13,7 +13,7 @@ import (
 type listener struct {
 	once           sync.Once
 	fd             int
-	saddr          *ServerAddr
+	saddr          *socket.ServerAddr
 	sockOpts       []socket.Option
 	pollAttachment *netpoll.PollAttachment // listener attachment for poller
 }
@@ -33,7 +33,7 @@ func (ln *listener) prepare() (err error) {
 	return
 }
 
-func initListener(addr *ServerAddr, options *Options) (l *listener, err error) {
+func initListener(addr *socket.ServerAddr, options *Options) (l *listener, err error) {
 	var sockOpts []socket.Option
 	l = &listener{saddr: addr, sockOpts: sockOpts}
 	err = l.prepare()

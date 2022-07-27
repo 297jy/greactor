@@ -3,11 +3,10 @@ package core
 import (
 	"fmt"
 	"golang.org/x/sys/unix"
-	"greactor/src/core/events"
 	"greactor/src/core/icodecs"
 	"greactor/src/core/netpoll"
-	"greactor/src/core/socket"
 	"greactor/src/errors"
+	"greactor/src/socket"
 	"net"
 	"os"
 	"runtime"
@@ -15,14 +14,6 @@ import (
 	"sync/atomic"
 	"time"
 )
-
-type ServerAddr struct {
-	Sa      unix.Sockaddr
-	NetAddr net.Addr
-	Address string
-	Network string
-	Family  int // 协议族
-}
 
 type Server struct {
 	ln           *listener
@@ -33,8 +24,8 @@ type Server struct {
 	cond         *sync.Cond
 	mainLoop     *eventLoop
 	inShutdown   int32
-	eventHandler events.EventHandler
-	addr         *ServerAddr
+	eventHandler EventHandler
+	addr         *socket.ServerAddr
 }
 
 const (
@@ -50,7 +41,35 @@ var (
 	shutdownPollInterval = 500 * time.Millisecond
 )
 
-func NewServer(eventHandler events.EventHandler, protoAddr string, opts *Options) (s *Server, err error) {
+type EventServer struct {
+}
+
+func (es *EventServer) OnInitComplete(svr *Server) (action Action) {
+	return
+}
+
+func (es *EventServer) OnShutdown(svr *Server) {
+}
+
+func (es *EventServer) OnOpened(c Conn) (out []byte, action Action) {
+	return
+}
+
+func (es *EventServer) OnClosed(c Conn, err error) (action Action) {
+	return
+}
+
+func (es *EventServer) PreWrite(c Conn) {
+}
+
+func (es *EventServer) AfterWrite(c Conn, b []byte) {
+}
+
+func (es *EventServer) React(packet []byte, c Conn) (out []byte, action Action) {
+	return
+}
+
+func NewServer(eventHandler EventHandler, protoAddr string, opts *Options) (s *Server, err error) {
 	var (
 		family  int
 		sa      unix.Sockaddr
@@ -60,10 +79,10 @@ func NewServer(eventHandler events.EventHandler, protoAddr string, opts *Options
 	if sa, family, netAddr, _, err = socket.GetTCPSockAddr(network, address); err != nil {
 		return nil, err
 	}
-	addr := &ServerAddr{Sa: sa, NetAddr: netAddr, Address: address, Family: family, Network: network}
+	addr := &socket.ServerAddr{Sa: sa, NetAddr: netAddr, Address: address, Family: family, Network: network}
 	s = &Server{eventHandler: eventHandler, addr: addr, opts: opts}
 	s.init()
-	return
+	return s, nil
 }
 
 func (s *Server) init() {
@@ -86,15 +105,14 @@ func (s *Server) Run() (err error) {
 		numEventLoop = runtime.NumCPU()
 	}
 
-	var ln *listener
-	if ln, err = initListener(s.addr, s.opts); err != nil {
+	if s.ln, err = initListener(s.addr, s.opts); err != nil {
 		return
 	}
-	defer ln.close()
+	defer s.ln.close()
 
 	switch s.eventHandler.OnInitComplete(s) {
-	case events.None:
-	case events.Shutdown:
+	case None:
+	case Shutdown:
 		return nil
 	}
 
@@ -151,7 +169,7 @@ func (s *Server) runReactors(numEventLoop int) error {
 	return nil
 }
 
-func (s *Server) accept(fd int, _ events.IOEvent) error {
+func (s *Server) accept(fd int, _ IOEvent) error {
 	nfd, sa, err := unix.Accept(fd)
 	if err != nil {
 		if err == unix.EAGAIN {

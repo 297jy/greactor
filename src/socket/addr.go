@@ -2,12 +2,20 @@ package socket
 
 import (
 	"golang.org/x/sys/unix"
-	"greactor/src/core/buffers"
+	"greactor/src/buffers"
 	"greactor/src/errors"
 	"net"
 	"strings"
 	"sync"
 )
+
+type ServerAddr struct {
+	Sa      unix.Sockaddr
+	NetAddr net.Addr
+	Address string
+	Network string
+	Family  int // 协议族
+}
 
 var ipv4AddrPool = sync.Pool{New: func() interface{} {
 	bs := new(buffers.ByteBuffer)

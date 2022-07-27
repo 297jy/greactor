@@ -3,7 +3,6 @@ package core
 import (
 	"fmt"
 	"golang.org/x/sys/unix"
-	"greactor/src/core/events"
 	"greactor/src/core/netpoll"
 	"greactor/src/errors"
 	"os"
@@ -19,7 +18,7 @@ type eventLoop struct {
 	buffer       []byte
 	connCount    int32
 	connections  map[int]*conn
-	eventHandler events.EventHandler
+	eventHandler EventHandler
 }
 
 func (el *eventLoop) activateMainReactor() {
@@ -72,7 +71,7 @@ func (el *eventLoop) closeConn(c *conn, err error) (rerr error) {
 	if rerr != nil {
 		return
 	}
-	if el.eventHandler.OnClosed(c, err) == events.Shutdown {
+	if el.eventHandler.OnClosed(c, err) == Shutdown {
 		rerr = errors.ErrServerShutdown
 	}
 	return
@@ -107,10 +106,10 @@ func (el *eventLoop) read(c *conn) (err error) {
 			}
 		}
 		switch action {
-		case events.None:
-		case events.Close:
+		case None:
+		case Close:
 			return el.closeConn(c, nil)
-		case events.Shutdown:
+		case Shutdown:
 			return errors.ErrServerShutdown
 		}
 
@@ -156,13 +155,13 @@ func (el *eventLoop) open(c *conn) error {
 	return el.handleAction(c, action)
 }
 
-func (el *eventLoop) handleAction(c *conn, action events.Action) error {
+func (el *eventLoop) handleAction(c *conn, action Action) error {
 	switch action {
-	case events.None:
+	case None:
 		return nil
-	case events.Close:
+	case Close:
 		return el.closeConn(c, nil)
-	case events.Shutdown:
+	case Shutdown:
 		return errors.ErrServerShutdown
 	default:
 		return nil

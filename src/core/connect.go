@@ -3,7 +3,7 @@ package core
 import (
 	"fmt"
 	"golang.org/x/sys/unix"
-	"greactor/src/core/buffers"
+	"greactor/src/buffers"
 	"greactor/src/core/icodecs"
 	"greactor/src/core/netpoll"
 	"net"
